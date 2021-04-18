@@ -1,0 +1,92 @@
+﻿@page "/languageslist"
+@using Microsoft.AspNetCore.SignalR.Client 
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpCLient
+<h1>Languages Details</h1>
+
+<p>
+    <a href="/addlanguage">Create new Language</a>  
+</p>
+
+@if (languages == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Website</th>
+            <th>Extensions</th>
+            <th colspan="2"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var language in languages)
+        {
+        <tr>
+            <td>@language.Name</td>
+            <td>@language.WebSite</td>
+            <td>@language.Extensions</td>
+            <td><a href="/editlanguage/@language.Id">Edit</a></td>
+            <td><a href="/deletelanguage/@language.Id">Delete</a></td>
+        </tr>
+        }
+
+    </tbody>
+    
+</table>
+}
+
+
+@code {
+    List<ProgrammingLanguage> languages;
+    private HubConnection hubConnection;
+
+    protected async override Task OnInitializedAsync()
+    {
+        //QUIERO QUE SE CONECTE AL HUB. Establecemos conexion
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/languageshub")).Build(); //COnseguimos conexion con el huB. El componente esta escuchando permanente
+
+        //Que pasa cuando el metodo se ejecuta?
+
+        hubConnection.On("ReceiveMessage", () =>
+
+        {
+            CallGetAllLanguages();
+            StateHasChanged(); //Avisamos que el estado de la pagina cambió
+
+        });
+
+
+        await hubConnection.StartAsync();
+        await GetAllLanguages(); //Cargar por primera vez los lenguajes. El metodo OnInitializedAsync se ejecuta una vez sola
+    }
+
+    private void CallGetAllLanguages()
+    {
+        Task.Run(async () =>
+        {
+            await GetAllLanguages();
+        });
+
+    }
+
+
+    protected async Task GetAllLanguages()
+    {
+        languages = await HttpCLient.GetFromJsonAsync<List<ProgrammingLanguage>>("api/ProgrammingLanguages");
+        StateHasChanged();
+    }
+
+
+    //Cuando el componente no se use mas
+    public void Dispose()
+    {
+        _ = hubConnection.DisposeAsync();
+    }
+
+}

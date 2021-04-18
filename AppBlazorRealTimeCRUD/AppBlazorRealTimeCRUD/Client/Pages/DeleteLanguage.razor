@@ -1,0 +1,85 @@
+﻿@page "/deletelanguage/{id}"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpCLient
+<h3>Delete Language</h3>
+
+<p style="color:red; text-align:center;">Are you Sure to Delete this Language?</p>
+
+<EditForm Model="@language">
+
+    <div class="row">
+        <div class="col col-md-8">
+            <div class="form-group">
+                <label for="Name" class="control-label">Name</label>
+                <input for="Name" class="form-control" @bind="@language.Name" disabled />
+            </div>
+            <div class="form-group">
+                <label for="Website" class="control-label">Website</label>
+                <input for="Website" class="form-control" @bind="@language.WebSite" disabled/>
+            </div>
+            <div class="form-group">
+                <label for="Extensions" class="control-label">Extensions</label>
+                <input for="Extensions" class="form-control" @bind="@language.Extensions"  disabled/>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary" value="Save" @onclick="@Delete" />
+                <input type="button" class="btn btn-secondary" value="Cancel" @onclick="@Cancel" />
+            </div>
+        </div>
+    </div>
+
+
+</EditForm>
+
+
+@code {
+    ProgrammingLanguage language = new ProgrammingLanguage();
+    private HubConnection hubConnection; //Para que la app sea en tiempo real
+
+    [Parameter]
+
+    public string id { get; set; }
+
+
+    protected async override Task OnInitializedAsync()
+    {
+
+        language = await HttpCLient.GetFromJsonAsync<ProgrammingLanguage>($"api/ProgrammingLanguages/{id}"); //Aqui obtengo el lenguaje por Id
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/languageshub")).Build(); //COnseguimos conexion con el huB. El componente esta escuchando permanente
+
+        await hubConnection.StartAsync();
+
+    }
+
+    protected async Task Delete()
+    {
+        await HttpCLient.DeleteAsync($"api/ProgrammingLanguages/{id}");
+        if (IsConnected) await SendMessage();
+
+        NavigationManager.NavigateTo("/languageslist");
+    }
+
+    Task SendMessage() => hubConnection.SendAsync("SendMessage");
+
+
+    public bool IsConnected =>
+        hubConnection.State == HubConnectionState.Connected;
+
+    public void Dispose()
+    {
+        _ = hubConnection.DisposeAsync();
+    }
+
+    public void Cancel()
+    {
+        NavigationManager.NavigateTo("/languageslist");
+    }
+}
